@@ -128,7 +128,6 @@
                   <label for="inputUsername">NIP / Username Admin</label>
                 </div>
                 
-                <!-- PERBAIKAN: Penambahan Ikon Mata pada Password -->
                 <div class="form-floating mb-3 position-relative">
                   <input class="form-control pe-5" id="inputPassword" type="password" placeholder="Password" required />
                   <label for="inputPassword">Password / NIK</label>
@@ -348,51 +347,17 @@
                   </div>
                   <div style="flex: 1;">
                       <table class="k-table">
-                          <tr>
-                              <td style="width: 32%; font-weight: bold;">Nama</td>
-                              <td colspan="2">: <span id="k_nama"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Jenjang</td>
-                              <td colspan="2">: <span id="k_jenjang"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">NIK</td>
-                              <td colspan="2">: <span id="k_nik"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Tempat, Tanggal Lahir</td>
-                              <td colspan="2">: <span id="k_ttl"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Jenis Kelamin</td>
-                              <td colspan="2">: <span id="k_jk"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Lokasi Ujian</td>
-                              <td colspan="2">: <span id="k_lokasi" style="color: blue; text-decoration: underline;"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Tanggal Ujian</td>
-                              <td colspan="2">: <span id="k_tgl"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Waktu Ujian</td>
-                              <td colspan="2">: <span id="k_waktu"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold;">Sesi Ujian</td>
-                              <td colspan="2">: <span id="k_sesi"></span></td>
-                          </tr>
-                          <tr>
-                              <td rowspan="2" style="font-weight: bold; vertical-align: middle;">Akun</td>
-                              <td style="width: 25%; font-weight: bold; text-align: center;">Username</td>
-                              <td>: <span id="k_user"></span></td>
-                          </tr>
-                          <tr>
-                              <td style="font-weight: bold; text-align: center;">Password</td>
-                              <td>: <span id="k_pass"></span></td>
-                          </tr>
+                          <tr><td style="width: 32%; font-weight: bold;">Nama</td><td colspan="2">: <span id="k_nama"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Jenjang</td><td colspan="2">: <span id="k_jenjang"></span></td></tr>
+                          <tr><td style="font-weight: bold;">NIK</td><td colspan="2">: <span id="k_nik"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Tempat, Tanggal Lahir</td><td colspan="2">: <span id="k_ttl"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Jenis Kelamin</td><td colspan="2">: <span id="k_jk"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Lokasi Ujian</td><td colspan="2">: <span id="k_lokasi" style="color: blue; text-decoration: underline;"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Tanggal Ujian</td><td colspan="2">: <span id="k_tgl"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Waktu Ujian</td><td colspan="2">: <span id="k_waktu"></span></td></tr>
+                          <tr><td style="font-weight: bold;">Sesi Ujian</td><td colspan="2">: <span id="k_sesi"></span></td></tr>
+                          <tr><td rowspan="2" style="font-weight: bold; vertical-align: middle;">Akun</td><td style="width: 25%; font-weight: bold; text-align: center;">Username</td><td>: <span id="k_user"></span></td></tr>
+                          <tr><td style="font-weight: bold; text-align: center;">Password</td><td>: <span id="k_pass"></span></td></tr>
                       </table>
                   </div>
               </div>
@@ -565,7 +530,6 @@
               try { 
                   data = JSON.parse(text); 
               } catch(e) { 
-                  // Mencegah parsing gagal jika Vercel mengembalikan pesan error HTML statis (misal batas ukuran)
                   throw new Error('Terjadi kesalahan pada server (Vercel): ' + res.status + '. Pastikan file tidak terlalu besar.'); 
               }
               
@@ -579,7 +543,6 @@
         }
       });
     }
-    // =================================================================================
 
     let globalBatasWaktu = "";
     let globalDaftarPengumuman = [];
@@ -588,7 +551,6 @@
         checkSession(); 
         loadPengaturanGlobal(); 
         
-        // PERBAIKAN: Script Toggle Mata Password
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('inputPassword');
             const eyeIcon = document.getElementById('eyeIcon');
@@ -604,14 +566,12 @@
         });
     });
 
-    // LOAD PENGATURAN UMUM: Batas Waktu & Render List Pengumuman
     function loadPengaturanGlobal() {
        google.script.run
          .withSuccessHandler(res => {
           globalBatasWaktu = res.Batas_Waktu;
           globalDaftarPengumuman = res.PengumumanList || [];
 
-          // Logika Batas Waktu
           let containers = document.querySelectorAll('.container-batas-waktu');
           let texts = document.querySelectorAll('.info-batas-waktu');
           
@@ -631,7 +591,6 @@
              containers.forEach(el => el.className = "alert alert-warning mt-4 shadow-sm border-0 d-inline-block text-start w-100 container-batas-waktu");
           }
 
-          // Render Pengumuman Feed ke Landing Page dan Dashboard Pegawai
           let htmlPengumuman = '';
           if(globalDaftarPengumuman.length > 0) {
               globalDaftarPengumuman.forEach(p => {
@@ -718,7 +677,6 @@
       const p = document.getElementById('inputPassword').value;
       document.getElementById('btnLogin').innerText = "Loading...";
       
-      // PERBAIKAN: Penanganan error agar tidak stuck pada Loading...
       google.script.run
         .withSuccessHandler(function(res) {
           document.getElementById('btnLogin').innerText = "Masuk";
@@ -753,7 +711,6 @@
           if(res.Batas_Waktu) { document.getElementById('setBatasWaktu').value = res.Batas_Waktu.substring(0, 16); } 
           else { document.getElementById('setBatasWaktu').value = ""; }
 
-          // Render Tabel Pengumuman Admin
           globalDaftarPengumuman = res.PengumumanList || [];
           let tbody = document.getElementById('tbodyPengumumanAdmin');
           tbody.innerHTML = '';
@@ -1076,17 +1033,20 @@
 
     async function submitBiodata() {
       if(globalBatasWaktu && globalBatasWaktu !== "" && new Date() > new Date(globalBatasWaktu)){ return Swal.fire('Gagal', 'Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya', 'error'); }
+
       const btn = document.getElementById('btnSubmitBio'); let fileInputs = document.querySelectorAll('.bioFile'); let filesToUpload = [];
+
       for (let input of fileInputs) {
         if (input.files.length > 0) {
           let f = input.files[0];
-          // Validasi Ukuran (2MB) di Frontend
           if (f.size > 2097152) return Swal.fire('Gagal', 'Ukuran file ' + input.getAttribute('data-name') + ' melebihi 2MB!', 'error');
           let ext = f.name.split('.').pop().toLowerCase(); if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) return Swal.fire('Gagal', 'Format file ' + input.getAttribute('data-name') + ' tidak valid!', 'error');
           let b64 = await toBase64(f); filesToUpload.push({ name: input.getAttribute('data-name'), base64: b64 });
         }
       }
+
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunggah Data & File...'; btn.disabled = true;
+
       let formData = { NIP: document.getElementById('bioNIP').value, Nama: document.getElementById('bioNama').value, Jenjang: document.getElementById('bioJenjang').value, NIK: document.getElementById('bioNIK').value, NUPTK: document.getElementById('bioNUPTK').value, Tempat_Lahir: document.getElementById('bioTempat').value, Tanggal_Lahir: document.getElementById('bioTgl').value, Jenis_Kelamin: document.getElementById('bioJK').value, Agama: document.getElementById('bioAgama').value, Pangkat_Golongan: document.getElementById('bioGol').value, Jabatan: document.getElementById('bioJabatan').value, Unit_Kerja: document.getElementById('bioUnit').value, Email: document.getElementById('bioEmail').value, No_HP: document.getElementById('bioHP').value, Alamat: document.getElementById('bioAlamat').value, ...oldFiles };
       
       google.script.run
