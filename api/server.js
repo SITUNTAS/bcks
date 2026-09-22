@@ -1,19 +1,23 @@
-import { createClient } from '@libsql/client';
+// PERBAIKAN UTAMA: Menggunakan versi "/web" khusus untuk Vercel Serverless
+import { createClient } from '@libsql/client/web'; 
 import { put } from '@vercel/blob';
 
-// Inisialisasi Database Turso
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
-
 export default async function handler(req, res) {
-  // Hanya menerima metode POST
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  const { action, args } = req.body;
-
   try {
+    // Validasi Environment Variables Vercel
+    if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+      throw new Error("Variabel TURSO_DATABASE_URL atau TURSO_AUTH_TOKEN belum disetting di Vercel.");
+    }
+
+    // Inisialisasi Database
+    const db = createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+
+    const { action, args } = req.body;
     let result;
 
     switch (action) {
@@ -178,11 +182,10 @@ export default async function handler(req, res) {
         throw new Error("Action tidak ditemukan!");
     }
     
-    // Kirim respons balik ke frontend
     res.status(200).json({ result });
 
   } catch (error) {
-    console.error("Kesalahan Server (Vercel API):", error);
+    console.error("Kesalahan Server:", error);
     res.status(500).json({ error: error.message });
   }
 }
