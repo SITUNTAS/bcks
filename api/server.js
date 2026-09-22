@@ -1,17 +1,19 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@libsql/client";
-import { put } from "@vercel/blob";
+import { createClient } from '@libsql/client';
+import { put } from '@vercel/blob';
 
-// Inisialisasi Database Turso langsung di sini (Mengatasi error Module not found)
+// Inisialisasi Database Turso
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-export async function POST(request) {
+export default async function handler(req, res) {
+  // Hanya menerima metode POST
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+  const { action, args } = req.body;
+
   try {
-    const body = await request.json();
-    const { action, args } = body;
     let result;
 
     switch (action) {
@@ -144,11 +146,12 @@ export async function POST(request) {
 
       case 'saveBiodata':
         let fd = args[0]; let filesData = args[1];
-        // Cek Batas Waktu
+        
+        // Pengecekan Batas Waktu
         const chkWaktu = await db.execute("SELECT nilai FROM pengaturan WHERE kunci = 'Batas_Waktu'");
         if(chkWaktu.rows.length > 0 && chkWaktu.rows[0].nilai) {
             if(new Date() > new Date(chkWaktu.rows[0].nilai)) {
-                return NextResponse.json({ result: "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya" }, { status: 200 });
+                return res.status(200).json({ result: "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya" });
             }
         }
 
@@ -175,11 +178,11 @@ export async function POST(request) {
         throw new Error("Action tidak ditemukan!");
     }
     
-    // Mengembalikan hasil ke Frontend
-    return NextResponse.json({ result }, { status: 200 });
+    // Kirim respons balik ke frontend
+    res.status(200).json({ result });
 
   } catch (error) {
     console.error("Kesalahan Server (Vercel API):", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    res.status(500).json({ error: error.message });
   }
 }
