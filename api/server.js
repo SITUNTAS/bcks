@@ -2,13 +2,11 @@ import { createClient } from '@libsql/client/web';
 import { put } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  // 1. Batasi hanya menerima POST request
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    // 2. Validasi Ketat Environment Variables
     const dbUrl = process.env.TURSO_DATABASE_URL;
     const dbToken = process.env.TURSO_AUTH_TOKEN;
 
@@ -16,7 +14,6 @@ export default async function handler(req, res) {
       throw new Error("Kredensial Database gagal dimuat. Pastikan TURSO_DATABASE_URL dan TURSO_AUTH_TOKEN sudah disetting di Vercel.");
     }
 
-    // 3. Inisialisasi Database di dalam handler (Mencegah error migration jobs 400 saat cold-start)
     const db = createClient({
       url: dbUrl,
       authToken: dbToken,
@@ -60,10 +57,16 @@ export default async function handler(req, res) {
       case 'savePengumuman':
         let [pId, pJudul, pTeks, pFileObj, pOldFile, pActionRow] = args;
         let pFileUrl = pOldFile || "";
+        
         if (pFileObj && pFileObj.base64) {
             const base64Data = pFileObj.base64.replace(/^data:([A-Za-z-+/]+);base64,/, '');
             const contentType = pFileObj.base64.substring(5, pFileObj.base64.indexOf(';'));
-            const blob = await put(`Pengumuman_${new Date().getTime()}_${pFileObj.name}`, Buffer.from(base64Data, 'base64'), { access: 'public', contentType });
+            // PERBAIKAN: Suntikkan token Blob secara eksplisit
+            const blob = await put(`Pengumuman_${new Date().getTime()}_${pFileObj.name}`, Buffer.from(base64Data, 'base64'), { 
+                access: 'public', 
+                contentType,
+                token: process.env.BLOB_READ_WRITE_TOKEN 
+            });
             pFileUrl = blob.url;
         }
         let tglSkrg = new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}) + " WIB";
@@ -156,7 +159,6 @@ export default async function handler(req, res) {
       case 'saveBiodata':
         let fd = args[0]; let filesData = args[1];
         
-        // Pengecekan Batas Waktu
         const chkWaktu = await db.execute("SELECT nilai FROM pengaturan WHERE kunci = 'Batas_Waktu'");
         if(chkWaktu.rows.length > 0 && chkWaktu.rows[0].nilai) {
             if(new Date() > new Date(chkWaktu.rows[0].nilai)) {
@@ -169,7 +171,12 @@ export default async function handler(req, res) {
             if(f.base64) {
                const b64Data = f.base64.replace(/^data:([A-Za-z-+/]+);base64,/, '');
                const cType = f.base64.substring(5, f.base64.indexOf(';'));
-               const blob = await put(`Berkas/${fd.NIP}_${f.name}`, Buffer.from(b64Data, 'base64'), { access: 'public', contentType: cType });
+               // PERBAIKAN: Suntikkan token Blob secara eksplisit
+               const blob = await put(`Berkas/${fd.NIP}_${f.name}`, Buffer.from(b64Data, 'base64'), { 
+                   access: 'public', 
+                   contentType: cType,
+                   token: process.env.BLOB_READ_WRITE_TOKEN
+               });
                fUrls[f.name] = blob.url;
             }
         }
@@ -187,13 +194,11 @@ export default async function handler(req, res) {
         throw new Error(`Action '${action}' tidak dikenali oleh server.`);
     }
     
-    // Kirim respons berhasil
     return res.status(200).json({ result });
 
   } catch (error) {
     console.error("Vercel Server Error:", error);
     
-    // 4. Transformasi pesan error Turso agar lebih mudah dipahami
     let errMsg = error.message;
     if (errMsg.includes("fetching migration jobs") || errMsg.includes("URL")) {
         errMsg = "Koneksi ke Database gagal. Pastikan TURSO_DATABASE_URL di Vercel diawali dengan 'libsql://' atau 'https://' dan benar.";
