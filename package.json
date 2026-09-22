@@ -1,15 +1,8 @@
 {
   "name": "bcks-app",
   "version": "1.0.0",
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
+  "type": "module",
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
     "@libsql/client": "latest",
     "@vercel/blob": "latest"
   }
