@@ -1,19 +1,19 @@
-import { createClient } from '@libsql/client';
-import { put } from '@vercel/blob';
+import { NextResponse } from "next/server";
+import { createClient } from "@libsql/client";
+import { put } from "@vercel/blob";
 
-// Koneksi ke Database Turso
+// Inisialisasi Database Turso langsung di sini (Mengatasi error Module not found)
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-
-  const { action, args } = req.body;
-
+export async function POST(request) {
   try {
+    const body = await request.json();
+    const { action, args } = body;
     let result;
+
     switch (action) {
       // --- FUNGSI OTENTIKASI ---
       case 'loginUser':
@@ -147,7 +147,9 @@ export default async function handler(req, res) {
         // Cek Batas Waktu
         const chkWaktu = await db.execute("SELECT nilai FROM pengaturan WHERE kunci = 'Batas_Waktu'");
         if(chkWaktu.rows.length > 0 && chkWaktu.rows[0].nilai) {
-            if(new Date() > new Date(chkWaktu.rows[0].nilai)) return res.status(200).json({ result: "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya" });
+            if(new Date() > new Date(chkWaktu.rows[0].nilai)) {
+                return NextResponse.json({ result: "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya" }, { status: 200 });
+            }
         }
 
         let fUrls = {};
@@ -172,47 +174,12 @@ export default async function handler(req, res) {
       default:
         throw new Error("Action tidak ditemukan!");
     }
-    res.status(200).json({ result });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}
-export async function fetchMigrationJobs() {
-  try {
-    // 1. Dapatkan token (sesuaikan dengan metode penyimpanan Anda, misal: localStorage atau state)
-    const token = localStorage.getItem('token'); 
     
-    // Pastikan token tidak undefined atau null sebelum melakukan request
-    if (!token) {
-      throw new Error('Akses ditolak: Token tidak ditemukan.');
-    }
-
-    // 2. Lakukan request API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/migration-jobs`, {
-      method: 'GET', // Ubah menjadi POST dan tambahkan properti `body: JSON.stringify(data)` jika mengirim data
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    // 3. Evaluasi status HTTP (fetch tidak otomatis error pada status 400/500)
-    if (!response.ok) {
-      // Ambil detail pesan error dari backend jika tersedia
-      const errorDetail = await response.json().catch(() => null);
-      const errorMessage = errorDetail?.message || `Gagal memuat data. Status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-
-    // 4. Parse respons JSON jika berhasil
-    const data = await response.json();
-    return data;
+    // Mengembalikan hasil ke Frontend
+    return NextResponse.json({ result }, { status: 200 });
 
   } catch (error) {
-    // 5. Tangkap dan log error
-    console.error('Error pada fetchMigrationJobs:', error);
-    
-    // Lempar kembali error agar bisa ditangani oleh UI/Komponen pemanggil (misal untuk menampilkan toast error)
-    throw error; 
+    console.error("Kesalahan Server (Vercel API):", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
