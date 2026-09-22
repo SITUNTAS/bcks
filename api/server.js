@@ -1,20 +1,25 @@
-// PERBAIKAN UTAMA: Menggunakan versi "/web" khusus untuk Vercel Serverless
-import { createClient } from '@libsql/client/web'; 
+import { createClient } from '@libsql/client/web';
 import { put } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  // 1. Batasi hanya menerima POST request
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   try {
-    // Validasi Environment Variables Vercel
-    if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-      throw new Error("Variabel TURSO_DATABASE_URL atau TURSO_AUTH_TOKEN belum disetting di Vercel.");
+    // 2. Validasi Ketat Environment Variables
+    const dbUrl = process.env.TURSO_DATABASE_URL;
+    const dbToken = process.env.TURSO_AUTH_TOKEN;
+
+    if (!dbUrl || !dbToken) {
+      throw new Error("Kredensial Database gagal dimuat. Pastikan TURSO_DATABASE_URL dan TURSO_AUTH_TOKEN sudah disetting di Vercel.");
     }
 
-    // Inisialisasi Database
+    // 3. Inisialisasi Database di dalam handler (Mencegah error migration jobs 400 saat cold-start)
     const db = createClient({
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      url: dbUrl,
+      authToken: dbToken,
     });
 
     const { action, args } = req.body;
@@ -179,13 +184,21 @@ export default async function handler(req, res) {
         break;
 
       default:
-        throw new Error("Action tidak ditemukan!");
+        throw new Error(`Action '${action}' tidak dikenali oleh server.`);
     }
     
-    res.status(200).json({ result });
+    // Kirim respons berhasil
+    return res.status(200).json({ result });
 
   } catch (error) {
-    console.error("Kesalahan Server:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Vercel Server Error:", error);
+    
+    // 4. Transformasi pesan error Turso agar lebih mudah dipahami
+    let errMsg = error.message;
+    if (errMsg.includes("fetching migration jobs") || errMsg.includes("URL")) {
+        errMsg = "Koneksi ke Database gagal. Pastikan TURSO_DATABASE_URL di Vercel diawali dengan 'libsql://' atau 'https://' dan benar.";
+    }
+
+    return res.status(500).json({ error: errMsg });
   }
 }
