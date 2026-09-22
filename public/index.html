@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Sistem Informasi BCKS - Kab. Tangerang</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #0d47a1;
+      --secondary-color: #ffca28;
+    }
+    body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .navbar { background-color: var(--primary-color); }
+    .navbar-brand, .nav-link { color: white !important; cursor: pointer; }
+    .nav-link.active { font-weight: bold; border-bottom: 2px solid var(--secondary-color); }
+    .btn-primary { background-color: var(--primary-color); border: none; }
+    .btn-warning { background-color: var(--secondary-color); color: #333; font-weight: bold; }
+    .card-header { background-color: var(--primary-color); color: white; }
+    .footer { text-align: center; padding: 20px; background: #fff; margin-top: 40px; border-top: 1px solid #ddd; }
+    .view-section { display: none; }
+    .spinner { display: none; margin: 20px auto; }
+    
+    /* Layout Khusus Untuk Download Kartu Peserta Format Template DOCX */
+    #areaCetak { background: #e0e0e0; padding: 20px; border-radius: 8px; display: flex; justify-content: center;}
+    #kartuPeserta { 
+        width: 100%; 
+        max-width: 190mm; 
+        padding: 30px 40px; 
+        background: #fff; 
+        color: #000; 
+        font-family: "Times New Roman", Times, serif; 
+        position: relative;
+        box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        margin: 0 auto;
+    }
+    .k-table { width: 100%; border-collapse: collapse; margin-top: 0;}
+    .k-table td { border: 1px solid #000; padding: 8px 12px; vertical-align: middle; font-size: 11pt; text-align: left;}
+    .k-header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #000; padding-bottom: 15px; display: flex; align-items: center;}
+    .k-header img { width: 90px; height: auto; margin-right: 20px; }
+    .k-header div { flex: 1; text-align: center; line-height: 1.3;}
+    /* Peningkatan Tampilan Kotak Foto di Cetak Kartu */
+    .k-photo-box { width: 3cm; height: 4cm; border: 1px solid #000; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #f8f9fa;}
+    .k-photo-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .k-photo-box span { font-size: 10pt; font-weight: bold; text-align: center; line-height: 1.2; color: #555;}
+
+    .pulse-warning {
+      animation: pulse-warning-animation 2s infinite;
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+    @keyframes pulse-warning-animation {
+      0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+
+    .pulse-red {
+      animation: pulse-red-animation 2s infinite;
+      color: #721c24;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      font-weight: bold;
+    }
+    @keyframes pulse-red-animation {
+      0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    .pengumuman-feed { max-height: 500px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg shadow-sm" id="mainNav" style="display:none;">
+    <div class="container">
+      <a class="navbar-brand" href="javascript:void(0)">
+        <img src="https://lh3.googleusercontent.com/d/1IWNmSpAZfMOYOU0uNK2RIiD83Zr63ye9" alt="Logo" width="30" class="me-2 bg-white rounded-circle p-1" crossorigin="anonymous"> SI-BCKS
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon" style="filter: invert(1);"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto" id="navLinks"></ul>
+        <span class="navbar-text text-white me-3" id="userNameDisplay"></span>
+        <button class="btn btn-danger btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="text-center spinner" id="globalSpinner">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p>Memuat data...</p>
+    </div>
+
+    <!-- VIEW: LOGIN & LANDING PAGE -->
+    <div id="login-view" class="view-section active">
+      <div class="row align-items-center mb-5 mt-4">
+        <div class="col-md-7 text-center text-md-start">
+          <div class="text-center text-md-start mb-3">
+             <img src="https://lh3.googleusercontent.com/d/1IWNmSpAZfMOYOU0uNK2RIiD83Zr63ye9" alt="Logo Kab Tangerang" style="width: 150px; height: auto;" crossorigin="anonymous">
+          </div>
+          <h2 style="color: var(--primary-color); font-weight: bold; text-transform: uppercase; font-size: 1.3rem; letter-spacing: 1px;">Aplikasi Pendaftaran & Verifikasi</h2>
+          <h1 style="color: var(--primary-color); font-weight: 800; font-size: 2.6rem; line-height: 1.2;">Seleksi Bakal Calon <br><span style="color: var(--secondary-color);">Kepala Sekolah (BCKS) Non Reguler</span></h1>
+          <p class="lead mt-3 text-secondary"><b>Dinas Pendidikan Kabupaten Tangerang</b>. Platform terpadu pengelolaan biodata, verifikasi berkas, dan penerbitan kartu ujian secara transparan dan akuntabel.</p>
+          
+          <div class="alert mt-4 shadow-sm border-0 d-inline-block text-start w-100 container-batas-waktu">
+             <i class="fas fa-info-circle"></i> <span class="info-batas-waktu">Memuat batas waktu...</span>
+          </div>
+
+          <!-- Area Pengumuman di Landing Page -->
+          <div id="areaPengumumanLanding" class="pengumuman-feed mt-4 text-start d-none"></div>
+
+        </div>
+        <div class="col-md-5">
+          <div class="card shadow-lg border-0 rounded-lg mt-5">
+            <div class="card-header text-center py-4"><h4 class="font-weight-light my-0">Login Sistem</h4></div>
+            <div class="card-body p-4">
+              <form id="loginForm" onsubmit="event.preventDefault(); prosesLogin();">
+                <div class="form-floating mb-3">
+                  <input class="form-control" id="inputUsername" type="text" placeholder="NIP/Username" required />
+                  <label for="inputUsername">NIP / Username Admin</label>
+                </div>
+                <div class="form-floating mb-3">
+                  <input class="form-control" id="inputPassword" type="password" placeholder="Password" required />
+                  <label for="inputPassword">Password / NIK</label>
+                </div>
+                <button class="btn btn-warning w-100 py-2 mt-2" type="submit" id="btnLogin">Masuk</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: ADMIN DASHBOARD -->
+    <div id="admin-dashboard" class="view-section">
+      <h3>Dashboard Admin</h3>
+      <div class="row mt-4">
+        <div class="col-md-4"><div class="card bg-primary text-white mb-4"><div class="card-body">Total Peserta: <h2 id="admTotal">0</h2></div></div></div>
+        <div class="col-md-4"><div class="card bg-success text-white mb-4"><div class="card-body">Berkas Lengkap: <h2 id="admLengkap">0</h2></div></div></div>
+        <div class="col-md-4"><div class="card bg-warning text-dark mb-4"><div class="card-body">Belum/Tidak Lengkap: <h2 id="admProses">0</h2></div></div></div>
+      </div>
+    </div>
+
+    <!-- VIEW: ADMIN DATA PESERTA -->
+    <div id="admin-data" class="view-section">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Verifikasi Data Peserta BCKS</h3>
+        <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Unduh File Excel</button>
+      </div>
+      <div class="table-responsive bg-white p-3 shadow-sm rounded">
+        <table class="table table-bordered table-hover" id="tableAdminData">
+          <thead class="table-primary">
+            <tr><th>NIP</th><th>Nama</th><th>Status Berkas</th><th>Aksi / Verifikasi</th></tr>
+          </thead>
+          <tbody id="tbodyAdminData"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW: ADMIN JADWAL UJIAN -->
+    <div id="admin-jadwal" class="view-section">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+        <h3 class="mb-3 mb-md-0">Pengaturan Jadwal Ujian & Akun CAT</h3>
+        <button class="btn btn-warning btn-sm" onclick="bukaJadwalMassal()"><i class="fas fa-check-square"></i> Atur Jadwal Peserta Terpilih</button>
+      </div>
+      <div class="alert alert-info small">Centang kotak pada baris peserta lalu klik tombol <b>Atur Jadwal Peserta Terpilih</b> untuk mengatur secara massal.</div>
+      <div class="table-responsive bg-white p-3 shadow-sm rounded">
+        <table class="table table-bordered table-hover">
+          <thead class="table-primary">
+            <tr>
+              <th width="5%" class="text-center"><input type="checkbox" id="chkAll" onclick="toggleAllJadwal(this)"></th>
+              <th>NIP</th><th>Nama</th><th>Jadwal & Lokasi Ujian</th><th>Akun CAT</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAdminJadwal"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW: ADMIN USERS -->
+    <div id="admin-users" class="view-section">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+        <h3 class="mb-3 mb-md-0">Kelola User Peserta</h3>
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="showModalUser()"><i class="fas fa-plus"></i> Tambah Manual</button>
+          <button class="btn btn-info btn-sm text-white" onclick="downloadTemplateUser()"><i class="fas fa-download"></i> Unduh Template Excel</button>
+          <button class="btn btn-success btn-sm" onclick="showModalUploadUser()"><i class="fas fa-file-excel"></i> Upload Template Excel</button>
+        </div>
+      </div>
+      <div class="table-responsive bg-white p-3 shadow-sm rounded">
+        <table class="table table-striped table-hover">
+          <thead class="table-dark">
+            <tr><th>Role</th><th>NIP / Username</th><th>Password / NIK</th><th>Nama</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="tbodyUsers"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW: ADMIN PENGATURAN -->
+    <div id="admin-pengaturan" class="view-section">
+      <h3>Pengaturan Sistem & Pengumuman</h3>
+      
+      <div class="card mt-4 shadow-sm border-0">
+        <div class="card-header bg-danger text-white fw-bold">1. Batas Waktu Melengkapi Data</div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Tentukan batas akhir (tanggal & jam) bagi peserta untuk melengkapi atau memperbaiki biodata. Lewat dari waktu ini, peserta otomatis tidak dapat lagi menyimpan atau merubah data.</p>
+          <div class="row align-items-center">
+             <div class="col-md-8 mb-3 mb-md-0">
+                <input type="datetime-local" id="setBatasWaktu" class="form-control form-control-lg">
+             </div>
+             <div class="col-md-4">
+                <button class="btn btn-danger w-100 btn-lg" onclick="simpanPengaturanBatas()"><i class="fas fa-save"></i> Simpan Batas Waktu</button>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4 shadow-sm border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold">2. Kelola Pengumuman Peserta</span>
+            <button class="btn btn-light btn-sm text-success fw-bold" onclick="showModalPengumuman()"><i class="fas fa-plus"></i> Tambah Pengumuman</button>
+        </div>
+        <div class="card-body p-0">
+           <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                 <thead class="table-light"><tr><th width="15%">Tanggal</th><th width="30%">Judul</th><th width="35%">Teks/Deskripsi</th><th width="10%" class="text-center">Lampiran</th><th width="10%" class="text-center">Aksi</th></tr></thead>
+                 <tbody id="tbodyPengumumanAdmin"></tbody>
+              </table>
+           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: PEGAWAI DASHBOARD -->
+    <div id="pegawai-dashboard" class="view-section">
+      <h3>Selamat Datang, <span class="uNama"></span>!</h3>
+      
+      <!-- Area Pengumuman di Dashboard Pegawai -->
+      <div id="areaPengumumanPegawai" class="pengumuman-feed mt-4 text-start d-none"></div>
+
+      <div class="alert mt-4 border-0 shadow-sm container-batas-waktu">
+          <i class="fas fa-info-circle"></i> <span class="info-batas-waktu">Memuat batas waktu...</span>
+      </div>
+      <div class="alert alert-info mt-3 shadow-sm border-0">Silahkan lengkapi biodata Anda pada menu <b>Biodata</b>. Pantau status verifikasi dan unduh Kartu Ujian pada menu <b>Informasi Verifikasi & Kartu</b>.</div>
+    </div>
+
+    <!-- VIEW: PEGAWAI BIODATA -->
+    <div id="pegawai-biodata" class="view-section">
+      <h3>Formulir Biodata</h3>
+      <div id="alertBio" class="alert d-none"></div>
+      <div class="card shadow-sm mt-3">
+        <div class="card-body">
+          <form id="formBiodata" onsubmit="event.preventDefault(); submitBiodata();">
+            <div class="row">
+              <div class="col-md-6 mb-3"><label>NIP</label><input type="text" class="form-control bg-light" id="bioNIP" readonly></div>
+              <div class="col-md-6 mb-3"><label>Nama Lengkap</label><input type="text" class="form-control bg-light" id="bioNama" readonly></div>
+              <div class="col-md-6 mb-3"><label>Jenjang Sekolah (Yang Dilamar)</label><select class="form-select" id="bioJenjang"><option>TK</option><option>SD</option><option>SMP</option></select></div>
+              <div class="col-md-6 mb-3"><label>NIK</label><input type="text" class="form-control" id="bioNIK" required></div>
+              <div class="col-md-6 mb-3"><label>NUPTK</label><input type="text" class="form-control" id="bioNUPTK" required></div>
+              <div class="col-md-6 mb-3"><label>Tempat Lahir</label><input type="text" class="form-control" id="bioTempat" required></div>
+              <div class="col-md-6 mb-3"><label>Tanggal Lahir</label><input type="date" class="form-control" id="bioTgl" required></div>
+              <div class="col-md-6 mb-3"><label>Jenis Kelamin</label><select class="form-select" id="bioJK"><option>Laki-laki</option><option>Perempuan</option></select></div>
+              <div class="col-md-6 mb-3"><label>Agama</label><select class="form-select" id="bioAgama"><option>Islam</option><option>Kristen</option><option>Katolik</option><option>Hindu</option><option>Buddha</option><option>Konghucu</option></select></div>
+              <div class="col-md-6 mb-3">
+                 <label>Pangkat / Golongan</label>
+                 <select class="form-select" id="bioGol" name="bioGol">
+                    <option value="III/a">Penata Muda / III/a</option>
+                    <option value="III/b">Penata Muda Tk. I / III/b</option>
+                    <option value="III/c">Penata / III/c</option>
+                    <option value="III/d">Penata Tk. I / III/d</option>
+                    <option value="IV/a">Pembina / IV/a</option>
+                    <option value="IV/b">Pembina Tk. I / IV/b</option>
+                 </select>
+              </div>
+              <div class="col-md-6 mb-3"><label>Jabatan</label><input type="text" class="form-control" id="bioJabatan" required></div>
+              <div class="col-md-6 mb-3"><label>Unit Kerja</label><input type="text" class="form-control" id="bioUnit" required></div>
+              <div class="col-md-6 mb-3"><label>Email</label><input type="email" class="form-control" id="bioEmail" required></div>
+              <div class="col-md-6 mb-3"><label>No HP</label><input type="text" class="form-control" id="bioHP" required></div>
+              <div class="col-md-12 mb-3"><label>Alamat</label><textarea class="form-control" id="bioAlamat" required></textarea></div>
+            </div>
+            
+            <h5 class="mt-4 mb-3 border-bottom pb-2">Upload Berkas Pendukung (Format PDF/JPG max 2MB)</h5>
+            <p class="text-danger small">* Kosongi jika tidak ingin mengubah file yang sudah diupload sebelumnya.</p>
+            <div class="row" id="fileInputs">
+              <div class="col-md-12 mb-3">
+                 <label class="fw-bold text-primary">Pas Photo 3x4 (Khusus untuk Kartu Ujian)</label>
+                 <input type="file" class="form-control bioFile border-primary" data-name="Foto" accept=".jpg, .jpeg, .png">
+              </div>
+              <div class="col-md-6 mb-3"><label>Ijazah D-IV/S1</label><input type="file" class="form-control bioFile" data-name="Ijazah" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>Sertifikat Pendidik</label><input type="file" class="form-control bioFile" data-name="Sertifikat" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>SK Pangkat/Golongan</label><input type="file" class="form-control bioFile" data-name="SK" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>SKP 2 Tahun Terakhir</label><input type="file" class="form-control bioFile" data-name="SKP" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>Surat Ket. Sehat & NAPZA</label><input type="file" class="form-control bioFile" data-name="Sehat" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>SKCK</label><input type="file" class="form-control bioFile" data-name="SKCK" accept=".pdf, .jpg, .jpeg, .png"></div>
+              <div class="col-md-6 mb-3"><label>Pakta Integritas</label><input type="file" class="form-control bioFile" data-name="Pakta" accept=".pdf, .jpg, .jpeg, .png"></div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 mt-3 btn-lg" id="btnSubmitBio"><i class="fas fa-paper-plane"></i> Simpan dan Kirim</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: PEGAWAI VERIFIKASI -->
+    <div id="pegawai-verifikasi" class="view-section">
+      <h3>Informasi Verifikasi & Kartu Ujian</h3>
+      <div class="card mt-4 text-center border-0 shadow-sm">
+        <div class="card-body" id="verifikasiStatus"></div>
+      </div>
+      
+      <div id="kartuPesertaArea" class="d-none mt-4 text-center">
+        <button class="btn btn-warning mb-3 btn-lg shadow-sm" onclick="unduhKartu()">
+           <i class="fas fa-download"></i> Unduh Kartu Peserta (PDF)
+        </button>
+        <div id="areaCetak">
+            <div id="kartuPeserta">
+              <!-- HEADER KARTU -->
+              <div class="k-header">
+                  <img src="https://lh3.googleusercontent.com/d/1IWNmSpAZfMOYOU0uNK2RIiD83Zr63ye9" alt="Logo" crossorigin="anonymous">
+                  <div>
+                      <h4 style="margin: 0; font-weight: bold; text-transform: uppercase;">Kartu Peserta Tes Metode CAT</h4>
+                      <h5 style="margin: 5px 0 0 0; font-weight: bold;">Bakal Calon Kepala Sekolah Non Reguler</h5>
+                      <h5 style="margin: 5px 0 0 0; font-weight: bold;">Dinas Pendidikan Kabupaten Tangerang</h5>
+                  </div>
+              </div>
+              
+              <!-- ISI DATA (Perbaikan Format Kotak Foto & Label)[cite: 20] -->
+              <div style="display: flex; align-items: flex-start; gap: 20px;">
+                  <div style="width: 3cm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+                      <div class="k-photo-box">
+                          <img id="k_foto" src="" crossorigin="anonymous" alt="Pas Foto">
+                          <span id="k_foto_text">Pas Photo<br>3x4</span>
+                      </div>
+                  </div>
+                  <div style="flex: 1;">
+                      <table class="k-table">
+                          <tr>
+                              <td style="width: 32%; font-weight: bold;">Nama</td>
+                              <td colspan="2">: <span id="k_nama"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Jenjang</td>
+                              <td colspan="2">: <span id="k_jenjang"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">NIK</td>
+                              <td colspan="2">: <span id="k_nik"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Tempat, Tanggal Lahir</td>
+                              <td colspan="2">: <span id="k_ttl"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Jenis Kelamin</td>
+                              <td colspan="2">: <span id="k_jk"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Lokasi Ujian</td>
+                              <td colspan="2">: <span id="k_lokasi" style="color: blue; text-decoration: underline;"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Tanggal Ujian</td>
+                              <td colspan="2">: <span id="k_tgl"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Waktu Ujian</td>
+                              <td colspan="2">: <span id="k_waktu"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">Sesi Ujian</td>
+                              <td colspan="2">: <span id="k_sesi"></span></td>
+                          </tr>
+                          <tr>
+                              <td rowspan="2" style="font-weight: bold; vertical-align: middle;">Akun</td>
+                              <td style="width: 25%; font-weight: bold; text-align: center;">Username</td>
+                              <td>: <span id="k_user"></span></td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold; text-align: center;">Password</td>
+                              <td>: <span id="k_pass"></span></td>
+                          </tr>
+                      </table>
+                  </div>
+              </div>
+              
+              <!-- PERHATIAN -->
+              <div style="margin-top: 30px; text-align: left;">
+                  <b style="font-size: 12pt;">Perhatian:</b>
+                  <ol style="margin-top: 10px; font-size: 11pt; line-height: 1.5; padding-left: 25px;">
+                      <li>Peserta WAJIB Datang 90 Menit Sebelum Waktu Ujian</li>
+                      <li>Kartu Peserta Ujian Ini Wajib Dibawa Saat Pelaksanaan Ujian</li>
+                      <li>Peserta wajib membawa Kartu / Bukti Identitas Diri (Asli) yang sesuai dengan Kartu Peserta Ujian</li>
+                      <li>Peserta wajib mengenakan kemeja putih, celana panjang hitam untuk laki-laki, rok atau celana panjang hitam untuk perempuan.</li>
+                  </ol>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Admin Verifikasi Berkas -->
+  <div class="modal fade" id="modalVerifikasi" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">Verifikasi Berkas <span id="mNama"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="mRow">
+          <label>Status Verifikasi</label>
+          <select id="mStatus" class="form-select mb-3"><option>Belum Verifikasi</option><option>Berkas Lengkap</option><option>Berkas Tidak Lengkap</option></select>
+          <label>Catatan untuk Peserta</label>
+          <textarea id="mCatatan" class="form-control" rows="3" placeholder="Contoh: SKP kurang jelas, mohon upload ulang."></textarea>
+          <h6 class="mt-3">Lampiran Peserta:</h6>
+          <ul id="mLinks" class="list-unstyled"></ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" onclick="hapusData()">Hapus Data Peserta</button>
+          <button class="btn btn-primary" onclick="simpanVerifikasi()">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Admin Atur Jadwal -->
+  <div class="modal fade" id="modalJadwal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">Atur Jadwal Ujian</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="jRow">
+          <div class="alert alert-info py-2" id="jNama" style="font-weight:bold; font-size:0.9rem;"></div>
+          <div class="mb-3"><label class="form-label text-muted small mb-0">Lokasi Ujian</label><textarea id="jLokasi" class="form-control" rows="2">Diklat Kitri Bhakti Curug, Kabupaten Tangerang</textarea></div>
+          <div class="row">
+            <div class="col-6 mb-3"><label class="form-label text-muted small mb-0">Tanggal Ujian</label><input type="date" id="jTanggal" class="form-control"></div>
+            <div class="col-6 mb-3"><label class="form-label text-muted small mb-0">Waktu Ujian</label><input type="time" id="jWaktu" class="form-control"></div>
+            <div class="col-12 mb-3"><label class="form-label text-muted small mb-0">Sesi Ujian</label><input type="text" id="jSesi" class="form-control" placeholder="Contoh: Sesi 1"></div>
+            <hr>
+            <p class="text-danger small mb-2">*Kosongi jika ingin sistem membuat Username & Password otomatis secara massal.</p>
+            <div class="col-6 mb-3"><label class="form-label text-muted small mb-0">Username CAT</label><input type="text" id="jUsername" class="form-control" placeholder="Generate ID..."></div>
+            <div class="col-6 mb-3"><label class="form-label text-muted small mb-0">Password CAT</label><input type="text" id="jPassword" class="form-control" placeholder="Generate Pass..."></div>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary w-100" onclick="simpanJadwal()">Simpan Jadwal</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit User -->
+  <div class="modal fade" id="modalUser" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalUserTitle">Tambah User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="uRow">
+          <div class="mb-3"><label>NIP / Username</label><input type="text" class="form-control" id="uNIP"></div>
+          <div class="mb-3"><label>NIK / Password</label><input type="text" class="form-control" id="uNIK"></div>
+          <div class="mb-3"><label>Nama Lengkap</label><input type="text" class="form-control" id="uNama"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary w-100" onclick="simpanUser()">Simpan Data User</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit Pengumuman -->
+  <div class="modal fade" id="modalPengumuman" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="modalPengumumanTitle">Tambah Pengumuman</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="pRow">
+          <input type="hidden" id="pOldFile">
+          <div class="mb-3"><label>Judul Pengumuman</label><input type="text" class="form-control" id="pJudul" placeholder="Contoh: Hasil Seleksi Administrasi" required></div>
+          <div class="mb-3"><label>Isi/Teks Pengumuman</label><textarea class="form-control" id="pTeks" rows="4" placeholder="Tulis rincian pengumuman..." required></textarea></div>
+          <div class="mb-3">
+             <label>Upload File / Surat Lampiran <span class="text-danger small">(Opsional)</span></label>
+             <input type="file" class="form-control" id="pFile" accept=".pdf,.doc,.docx,.jpg,.png">
+             <small id="pLinkFile" class="text-success d-none mt-1 d-block"><a href="#" target="_blank">Lihat File Tersimpan</a></small>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-success w-100" id="btnSimpanPeng" onclick="simpanPengumumanDb()"><i class="fas fa-save"></i> Simpan Pengumuman</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Upload Template User (EXCEL) -->
+  <div class="modal fade" id="modalUploadUser" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">Upload Template User (Excel)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-2">Upload file <b>.xlsx</b> hasil dari Unduh Template yang telah Anda isi datanya.</p>
+          <input type="file" class="form-control" id="fileExcelUser" accept=".xlsx, .xls">
+        </div>
+        <div class="modal-footer"><button class="btn btn-success w-100" onclick="prosesUploadUser()"><i class="fas fa-upload"></i> Mulai Impor</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">&copy; 2026 Sistem Seleksi BCKS Kabupaten Tangerang | <b>belajar inovasi</b></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // =================================================================================
+    // PROXY GOOGLE.SCRIPT.RUN UNTUK VERCEL (JANGAN DIHAPUS - WAJIB PALING ATAS)
+    // Script ini mencegat perintah GAS dan meneruskannya ke Vercel Serverless (Turso)
+    // =================================================================================
+    const google = {
+      script: {
+        run: {
+          withSuccessHandler: function(successCb) {
+            const handlers = { success: successCb, failure: (err) => console.error(err) };
+            const runner = {
+              withFailureHandler: function(failureCb) {
+                handlers.failure = failureCb;
+                return createProxy(handlers);
+              }
+            };
+            return Object.assign(runner, createProxy(handlers));
+          }
+        }
+      }
+    };
+
+    function createProxy(handlers) {
+      return new Proxy({}, {
+        get: function(target, prop) {
+          return async function(...args) {
+            try {
+              let res = await fetch('/api/server', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: prop, args: args })
+              });
+              let data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Server error');
+              if (handlers.success) handlers.success(data.result);
+            } catch (err) {
+              if (handlers.failure) handlers.failure(err);
+            }
+          };
+        }
+      });
+    }
+    // =================================================================================
+
+
+    // =================================================================================
+    // LANJUTKAN DENGAN KODE JAVASCRIPT ASLI ANDA DI BAWAH SINI
+    // Tidak perlu ada satupun yang dirubah dari fungsi-fungsi JS yang sudah Anda buat!
+    // =================================================================================
+    
+let globalBatasWaktu = "";
+    let globalDaftarPengumuman = [];
+
+    document.addEventListener("DOMContentLoaded", function() { 
+        checkSession(); 
+        loadPengaturanGlobal(); 
+    });
+
+    // LOAD PENGATURAN UMUM: Batas Waktu & Render List Pengumuman (Landing Page & Dasboard)[cite: 19, 21]
+    function loadPengaturanGlobal() {
+       google.script.run.withSuccessHandler(res => {
+          globalBatasWaktu = res.Batas_Waktu;
+          globalDaftarPengumuman = res.PengumumanList || [];
+
+          // Logika Batas Waktu
+          let containers = document.querySelectorAll('.container-batas-waktu');
+          let texts = document.querySelectorAll('.info-batas-waktu');
+          
+          if(res.Batas_Waktu && res.Batas_Waktu !== "") {
+             let tglBatas = new Date(res.Batas_Waktu);
+             let now = new Date();
+             let formatTgl = tglBatas.toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+             
+             texts.forEach(el => el.innerHTML = "Batas akhir melengkapi data: <b>" + formatTgl + " WIB</b>");
+             if (now > tglBatas) {
+                 containers.forEach(el => el.className = "alert mt-4 shadow-sm border-0 d-inline-block text-start w-100 container-batas-waktu pulse-red");
+             } else {
+                 containers.forEach(el => el.className = "alert alert-warning mt-4 shadow-sm border-0 d-inline-block text-start w-100 container-batas-waktu pulse-warning");
+             }
+          } else {
+             texts.forEach(el => el.innerHTML = "Batas waktu pengumpulan data <b>Belum Ditentukan</b>.");
+             containers.forEach(el => el.className = "alert alert-warning mt-4 shadow-sm border-0 d-inline-block text-start w-100 container-batas-waktu");
+          }
+
+          // Render Pengumuman Feed ke Landing Page dan Dashboard Pegawai[cite: 19]
+          let htmlPengumuman = '';
+          if(globalDaftarPengumuman.length > 0) {
+              globalDaftarPengumuman.forEach(p => {
+                  htmlPengumuman += `
+                  <div class="alert alert-success shadow-sm border-0 mb-3">
+                      <h5 class="alert-heading fw-bold mb-2"><i class="fas fa-bullhorn text-success"></i> ${p.judul}</h5>
+                      <p class="mb-2" style="white-space: pre-wrap; font-size: 0.95rem;">${p.teks}</p>
+                      ${p.file ? `<a href="${p.file}" target="_blank" class="btn btn-sm btn-success mt-1"><i class="fas fa-download"></i> Unduh Lampiran</a>` : ''}
+                      <div class="text-muted mt-2" style="font-size: 0.8rem;"><i class="fas fa-clock"></i> Diposting: ${p.tanggal}</div>
+                  </div>`;
+              });
+          }
+
+          let areaLnd = document.getElementById('areaPengumumanLanding');
+          if(areaLnd) {
+              if(htmlPengumuman !== '') { areaLnd.innerHTML = htmlPengumuman; areaLnd.classList.remove('d-none'); }
+              else { areaLnd.classList.add('d-none'); }
+          }
+          let areaPeg = document.getElementById('areaPengumumanPegawai');
+          if(areaPeg) {
+              if(htmlPengumuman !== '') { areaPeg.innerHTML = htmlPengumuman; areaPeg.classList.remove('d-none'); }
+              else { areaPeg.classList.add('d-none'); }
+          }
+
+       }).getPengaturanGlobal();
+    }
+
+    function formatWaktu24(waktu) {
+        if (!waktu) return '-';
+        let rawWaktu = waktu.toString().trim();
+        let match = rawWaktu.match(/^(\d{1,2}):(\d{2})(:\d{2})?$/);
+        if (match) return match[1].padStart(2, '0') + ':' + match[2];
+        let dummyDate = new Date("2000-01-01 " + rawWaktu);
+        if (!isNaN(dummyDate.getTime())) return dummyDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\./g, ':');
+        return rawWaktu;
+    }
+
+    function showView(viewId) {
+      document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
+      document.getElementById(viewId).style.display = 'block';
+      document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+      let link = document.querySelector(`[onclick="showView('${viewId}')"]`);
+      if(link) link.classList.add('active');
+    }
+
+    function checkSession() {
+      const role = localStorage.getItem('role');
+      const nip = localStorage.getItem('nip');
+      const nama = localStorage.getItem('nama');
+
+      if (role && nip) {
+        document.getElementById('mainNav').style.display = 'block';
+        document.getElementById('userNameDisplay').innerText = nama;
+        document.querySelectorAll('.uNama').forEach(el => el.innerText = nama);
+        
+        const navLinks = document.getElementById('navLinks');
+        if (role === 'Admin') {
+          navLinks.innerHTML = `
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('admin-dashboard'); loadAdminDash();">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('admin-data'); loadAdminData();">Data Peserta</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('admin-jadwal'); loadAdminJadwal();">Jadwal Ujian</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('admin-users'); loadUsers();">User Peserta</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('admin-pengaturan'); loadAdminPengaturan();">Pengaturan</a></li>
+          `;
+          showView('admin-dashboard'); loadAdminDash();
+        } else {
+          navLinks.innerHTML = `
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('pegawai-dashboard');">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('pegawai-biodata'); loadPegawaiBio();">Biodata</a></li>
+            <li class="nav-item"><a class="nav-link" href="javascript:void(0)" onclick="showView('pegawai-verifikasi'); loadPegawaiVerif();">Informasi Verifikasi & Kartu</a></li>
+          `;
+          showView('pegawai-dashboard');
+        }
+      } else {
+        document.getElementById('mainNav').style.display = 'none';
+        showView('login-view');
+      }
+    }
+
+    function prosesLogin() {
+      const u = document.getElementById('inputUsername').value;
+      const p = document.getElementById('inputPassword').value;
+      document.getElementById('btnLogin').innerText = "Loading...";
+      
+      google.script.run.withSuccessHandler(function(res) {
+        document.getElementById('btnLogin').innerText = "Masuk";
+        if (res.status === "success") {
+          localStorage.setItem('role', res.role); localStorage.setItem('nip', res.nip); localStorage.setItem('nama', res.nama);
+          Swal.fire({ icon: 'success', title: 'Login Berhasil', text: 'Selamat datang, ' + res.nama, timer: 1500, showConfirmButton: false }).then(() => checkSession());
+        } else { Swal.fire({ icon: 'error', title: 'Login Gagal', text: res.message }); }
+      }).loginUser(u, p);
+    }
+
+    function logout() { 
+      Swal.fire({ title: 'Keluar Sistem?', text: "Anda akan keluar dari sesi ini.", icon: 'question', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Ya, Logout!'
+      }).then((result) => { if (result.isConfirmed) { localStorage.clear(); checkSession(); } });
+    }
+    
+    function showSpinner(show) { document.getElementById('globalSpinner').style.display = show ? 'block' : 'none'; }
+
+    // ================= FUNGSI ADMIN PENGATURAN (BATAS WAKTU & PENGUMUMAN CRUD) =================
+    // Fungsi ini dipanggil khusus saat Admin membuka Tab "Pengaturan"[cite: 21]
+    function loadAdminPengaturan() {
+       showSpinner(true);
+       google.script.run.withSuccessHandler(res => {
+          showSpinner(false);
+          
+          if(res.Batas_Waktu) { document.getElementById('setBatasWaktu').value = res.Batas_Waktu.substring(0, 16); } 
+          else { document.getElementById('setBatasWaktu').value = ""; }
+
+          // Render Tabel Pengumuman Admin
+          globalDaftarPengumuman = res.PengumumanList || [];
+          let tbody = document.getElementById('tbodyPengumumanAdmin');
+          tbody.innerHTML = '';
+          if(globalDaftarPengumuman.length > 0){
+             globalDaftarPengumuman.forEach((p, idx) => {
+                 let btnFile = p.file ? `<a href="${p.file}" target="_blank" class="btn btn-sm btn-outline-success"><i class="fas fa-file"></i> File</a>` : '-';
+                 let escJudul = p.judul.replace(/'/g, "\\'"); 
+                 let escTeks = p.teks.replace(/'/g, "\\'").replace(/\n/g, "\\n");
+                 let escFile = p.file ? p.file.replace(/'/g, "\\'") : "";
+
+                 tbody.innerHTML += `<tr>
+                    <td><small>${p.tanggal}</small></td>
+                    <td><b>${p.judul}</b></td>
+                    <td><small>${p.teks.substring(0, 60)}...</small></td>
+                    <td class="text-center">${btnFile}</td>
+                    <td class="text-center">
+                       <button class="btn btn-sm btn-warning mb-1" onclick="editPengumuman('${p.row}', '${escJudul}', '${escTeks}', '${escFile}')"><i class="fas fa-edit"></i></button>
+                       <button class="btn btn-sm btn-danger mb-1" onclick="hapusPengumuman('${p.row}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                 </tr>`;
+             });
+          } else {
+             tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Belum ada pengumuman yang ditambahkan.</td></tr>`;
+          }
+       }).getPengaturanGlobal();
+    }
+
+    function simpanPengaturanBatas() {
+       let tgl = document.getElementById('setBatasWaktu').value;
+       showSpinner(true);
+       google.script.run.withSuccessHandler(res => {
+          showSpinner(false); Swal.fire('Berhasil', res, 'success'); loadPengaturanGlobal(); 
+       }).saveBatasWaktu(tgl);
+    }
+
+    function showModalPengumuman() {
+       document.getElementById('modalPengumumanTitle').innerText = 'Tambah Pengumuman Baru';
+       document.getElementById('pRow').value = ''; document.getElementById('pJudul').value = '';
+       document.getElementById('pTeks').value = ''; document.getElementById('pFile').value = '';
+       document.getElementById('pOldFile').value = ''; document.getElementById('pLinkFile').classList.add('d-none');
+       new bootstrap.Modal(document.getElementById('modalPengumuman')).show();
+    }
+
+    function editPengumuman(row, judul, teks, oldFile) {
+       document.getElementById('modalPengumumanTitle').innerText = 'Edit Pengumuman';
+       document.getElementById('pRow').value = row; document.getElementById('pJudul').value = judul;
+       document.getElementById('pTeks').value = teks; document.getElementById('pFile').value = '';
+       document.getElementById('pOldFile').value = oldFile;
+       
+       let lFile = document.getElementById('pLinkFile');
+       if(oldFile && oldFile !== "") {
+          lFile.classList.remove('d-none'); lFile.querySelector('a').href = oldFile;
+       } else { lFile.classList.add('d-none'); }
+
+       new bootstrap.Modal(document.getElementById('modalPengumuman')).show();
+    }
+
+    async function simpanPengumumanDb() {
+       let row = document.getElementById('pRow').value;
+       let judul = document.getElementById('pJudul').value;
+       let teks = document.getElementById('pTeks').value;
+       let oldFile = document.getElementById('pOldFile').value;
+       let fileInput = document.getElementById('pFile');
+       
+       if(!judul || !teks) return Swal.fire('Peringatan', 'Judul dan Teks pengumuman wajib diisi!', 'warning');
+
+       let fileObj = null;
+       if(fileInput.files.length > 0) {
+           let f = fileInput.files[0];
+           if (f.size > 5242880) return Swal.fire('Gagal', 'Ukuran file surat pengumuman melebihi 5MB!', 'error'); 
+           let b64 = await toBase64(f);
+           fileObj = { name: f.name, base64: b64 };
+       }
+
+       let btn = document.getElementById('btnSimpanPeng');
+       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'; btn.disabled = true;
+
+       google.script.run.withSuccessHandler(res => {
+          btn.innerHTML = '<i class="fas fa-save"></i> Simpan Pengumuman'; btn.disabled = false;
+          bootstrap.Modal.getInstance(document.getElementById('modalPengumuman')).hide();
+          Swal.fire('Berhasil', res, 'success');
+          loadAdminPengaturan(); loadPengaturanGlobal();
+       }).savePengumuman(null, judul, teks, fileObj, oldFile, row);
+    }
+
+    function hapusPengumuman(row) {
+       Swal.fire({ title: 'Hapus Pengumuman?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' })
+       .then((result) => {
+         if (result.isConfirmed) {
+           showSpinner(true);
+           google.script.run.withSuccessHandler(res => {
+             showSpinner(false); Swal.fire('Terhapus!', res, 'success'); loadAdminPengaturan(); loadPengaturanGlobal();
+           }).deletePengumuman(row);
+         }
+       });
+    }
+
+    // ================= FUNGSI ADMIN DATA & JADWAL =================
+    function loadAdminDash() {
+      google.script.run.withSuccessHandler(res => {
+        let lengkap = 0; let proses = 0;
+        res.forEach(d => { if(d.Status_Verifikasi === 'Berkas Lengkap') lengkap++; else proses++; });
+        document.getElementById('admTotal').innerText = res.length;
+        document.getElementById('admLengkap').innerText = lengkap;
+        document.getElementById('admProses').innerText = proses;
+      }).getSemuaBiodata();
+    }
+
+    function loadAdminData() {
+      showSpinner(true);
+      google.script.run.withSuccessHandler(res => {
+        showSpinner(false);
+        globalAdminData = res;
+        const tbody = document.getElementById('tbodyAdminData');
+        tbody.innerHTML = '';
+        res.forEach((d, index) => {
+          let badge = d.Status_Verifikasi === 'Berkas Lengkap' ? 'bg-success' : (d.Status_Verifikasi === 'Berkas Tidak Lengkap' ? 'bg-danger' : 'bg-warning text-dark');
+          tbody.innerHTML += `
+            <tr>
+              <td>${d.NIP}</td><td>${d.Nama}<br><small class="text-muted">${d.Jenjang || '-'}</small></td>
+              <td><span class="badge ${badge}">${d.Status_Verifikasi || 'Belum Verifikasi'}</span><br><small>${d.Catatan || ''}</small></td>
+              <td><button class="btn btn-sm btn-primary" onclick="bukaVerifikasi(${index})">Cek & Aksi</button></td>
+            </tr>`;
+        });
+      }).getSemuaBiodata();
+    }
+
+    function bukaVerifikasi(index) {
+      let d = globalAdminData[index];
+      document.getElementById('mNama').innerText = d.Nama; document.getElementById('mRow').value = d.row;
+      document.getElementById('mStatus').value = d.Status_Verifikasi || "Belum Verifikasi"; document.getElementById('mCatatan').value = d.Catatan || "";
+      
+      let files = ['Foto','Ijazah','Sertifikat','SK','SKP','Sehat','SKCK','Pakta']; let linksHTML = '';
+      files.forEach(f => {
+        if(d[f]) linksHTML += `<li><i class="fas fa-link"></i> <a href="${d[f]}" target="_blank">${f}</a></li>`;
+        else linksHTML += `<li><i class="fas fa-times text-danger"></i> ${f} (Belum Upload)</li>`;
+      });
+      document.getElementById('mLinks').innerHTML = linksHTML;
+      new bootstrap.Modal(document.getElementById('modalVerifikasi')).show();
+    }
+
+    function simpanVerifikasi() {
+      let row = document.getElementById('mRow').value; let status = document.getElementById('mStatus').value; let cat = document.getElementById('mCatatan').value;
+      google.script.run.withSuccessHandler(() => {
+        bootstrap.Modal.getInstance(document.getElementById('modalVerifikasi')).hide(); Swal.fire('Berhasil', 'Status verifikasi berhasil disimpan!', 'success');
+        loadAdminData(); loadAdminDash(); loadAdminJadwal();
+      }).verifyBerkas(row, status, cat);
+    }
+    
+    function hapusData() {
+      Swal.fire({ title: 'Yakin hapus biodata peserta ini?', text: "Data yang dihapus tidak dapat dikembalikan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'Ya, Hapus!' })
+      .then((result) => { if (result.isConfirmed) { let row = document.getElementById('mRow').value; google.script.run.withSuccessHandler((res) => { bootstrap.Modal.getInstance(document.getElementById('modalVerifikasi')).hide(); Swal.fire('Terhapus!', res, 'success'); loadAdminData(); }).hapusPeserta(row); } });
+    }
+
+    function exportExcel() {
+        var wb = XLSX.utils.book_new(); var exportData = globalAdminData.map(function(item) { var obj = Object.assign({}, item); delete obj.row; return obj; });
+        var ws = XLSX.utils.json_to_sheet(exportData); XLSX.utils.book_append_sheet(wb, ws, "DataPeserta"); XLSX.writeFile(wb, "Data_Peserta_BCKS.xlsx");
+    }
+    
+    function toggleAllJadwal(source) {
+      const checkboxes = document.querySelectorAll('.chk-jadwal'); for(let i=0; i<checkboxes.length; i++) { checkboxes[i].checked = source.checked; }
+    }
+
+    function loadAdminJadwal() {
+      showSpinner(true);
+      google.script.run.withSuccessHandler(res => {
+        showSpinner(false); globalAdminData = res; const tbody = document.getElementById('tbodyAdminJadwal'); tbody.innerHTML = '';
+        res.forEach((d, index) => {
+          if (d.Status_Verifikasi === 'Berkas Lengkap') {
+            let tgl = d.Tanggal_Ujian ? new Date(d.Tanggal_Ujian).toLocaleDateString('id-ID') : '-';
+            let wktFormat = formatWaktu24(d.Waktu_Ujian); let wktDisplay = wktFormat !== '-' ? wktFormat + ' WIB' : '-'; 
+            let isSet = (d.Username_CAT && d.Username_CAT.trim() !== '');
+            let btnClass = isSet ? 'btn-success' : 'btn-warning text-dark'; let btnText = isSet ? '<i class="fas fa-edit"></i> Edit Jadwal' : '<i class="fas fa-calendar-alt"></i> Atur Jadwal';
+            
+            tbody.innerHTML += `<tr><td class="text-center"><input type="checkbox" class="chk-jadwal" value="${d.row}"></td><td>${d.NIP}</td><td><b>${d.Nama}</b></td>
+                <td><small><b>Tgl:</b> ${tgl} | <b>Pukul:</b> ${wktDisplay}</small><br><small><b>Sesi:</b> ${d.Sesi_Ujian || '-'}</small><br></td>
+                <td><small><b>User:</b> ${d.Username_CAT || '-'}<br><b>Pass:</b> ${d.Password_CAT || '-'}</small></td>
+                <td><button class="btn btn-sm ${btnClass}" onclick="bukaJadwal(${index})">${btnText}</button></td></tr>`;
+          }
+        });
+        if(tbody.innerHTML === '') tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Belum ada peserta yang berkasnya lengkap.</td></tr>`;
+      }).getSemuaBiodata();
+    }
+    
+    function bukaJadwal(index) {
+      let d = globalAdminData[index]; document.getElementById('jRow').value = JSON.stringify([d.row]); document.getElementById('jNama').innerText = "Peserta: " + d.Nama;
+      document.getElementById('jLokasi').value = d.Lokasi_Ujian || "Diklat Kitri Bhakti Curug, Kabupaten Tangerang";
+      let tgl = new Date(d.Tanggal_Ujian); document.getElementById('jTanggal').value = !isNaN(tgl.getTime()) ? tgl.toISOString().split('T')[0] : "";
+      let wktFormat = formatWaktu24(d.Waktu_Ujian); document.getElementById('jWaktu').value = wktFormat !== '-' ? wktFormat : "";
+      document.getElementById('jSesi').value = d.Sesi_Ujian || ""; document.getElementById('jUsername').value = d.Username_CAT || ""; document.getElementById('jPassword').value = d.Password_CAT || "";
+      new bootstrap.Modal(document.getElementById('modalJadwal')).show();
+    }
+
+    function bukaJadwalMassal() {
+      let checked = document.querySelectorAll('.chk-jadwal:checked');
+      if(checked.length === 0) return Swal.fire('Peringatan', 'Centang minimal satu peserta pada tabel!', 'warning');
+      let rowsArray = []; checked.forEach(chk => rowsArray.push(parseInt(chk.value)));
+      document.getElementById('jRow').value = JSON.stringify(rowsArray); document.getElementById('jNama').innerText = checked.length + " Peserta Terpilih";
+      document.getElementById('jLokasi').value = "Diklat Kitri Bhakti Curug, Kabupaten Tangerang"; document.getElementById('jTanggal').value = ""; document.getElementById('jWaktu').value = "";
+      document.getElementById('jSesi').value = ""; document.getElementById('jUsername').value = ""; document.getElementById('jPassword').value = "";
+      new bootstrap.Modal(document.getElementById('modalJadwal')).show();
+    }
+    
+    function simpanJadwal() {
+        let rows = JSON.parse(document.getElementById('jRow').value);
+        let dataJadwal = { Lokasi_Ujian: document.getElementById('jLokasi').value, Tanggal_Ujian: document.getElementById('jTanggal').value, Waktu_Ujian: document.getElementById('jWaktu').value, Sesi_Ujian: document.getElementById('jSesi').value, Username_CAT: document.getElementById('jUsername').value, Password_CAT: document.getElementById('jPassword').value };
+        btn = document.querySelector("#modalJadwal .btn-primary"); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...'; btn.disabled = true;
+        google.script.run.withSuccessHandler(res => { btn.innerHTML = 'Simpan Jadwal'; btn.disabled = false; bootstrap.Modal.getInstance(document.getElementById('modalJadwal')).hide(); Swal.fire('Berhasil', res, 'success'); loadAdminJadwal(); document.getElementById('chkAll').checked = false; }).withFailureHandler(err => { btn.innerHTML = 'Simpan Jadwal'; btn.disabled = false; Swal.fire('Gagal Menyimpan', err.message, 'error'); }).saveJadwalMassal(rows, dataJadwal);
+    }
+
+    // ================= FITUR USER MANAGEMENT =================
+    function loadUsers() {
+      google.script.run.withSuccessHandler(res => {
+        const tbody = document.getElementById('tbodyUsers'); tbody.innerHTML = '';
+        res.forEach(u => {
+          let btnAksi = (u.role === 'Admin') ? '' : `<button class="btn btn-sm btn-warning" onclick="editUser('${u.row}','${u.nip}','${u.nik}','${u.nama}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="hapusUser('${u.row}')"><i class="fas fa-trash"></i></button>`;
+          tbody.innerHTML += `<tr><td>${u.role}</td><td>${u.nip}</td><td>${u.nik}</td><td>${u.nama}</td><td>${btnAksi}</td></tr>`;
+        });
+      }).getSemuaUsers();
+    }
+    function showModalUser() { document.getElementById('modalUserTitle').innerText = 'Tambah User'; document.getElementById('uRow').value = ''; document.getElementById('uNIP').value = ''; document.getElementById('uNIK').value = ''; document.getElementById('uNama').value = ''; new bootstrap.Modal(document.getElementById('modalUser')).show(); }
+    function editUser(row, nip, nik, nama) { document.getElementById('modalUserTitle').innerText = 'Edit User'; document.getElementById('uRow').value = row; document.getElementById('uNIP').value = nip; document.getElementById('uNIK').value = nik; document.getElementById('uNama').value = nama; new bootstrap.Modal(document.getElementById('modalUser')).show(); }
+    function simpanUser() {
+      let row = document.getElementById('uRow').value; let nip = document.getElementById('uNIP').value; let nik = document.getElementById('uNIK').value; let nama = document.getElementById('uNama').value;
+      if(!nip || !nik || !nama) return Swal.fire('Peringatan', 'Lengkapi seluruh data!', 'warning');
+      bootstrap.Modal.getInstance(document.getElementById('modalUser')).hide(); showSpinner(true);
+      if(row) { google.script.run.withSuccessHandler(res => { showSpinner(false); Swal.fire('Berhasil', res, 'success'); loadUsers(); }).editUserDB(row, nip, nik, nama); } else { google.script.run.withSuccessHandler(res => { showSpinner(false); Swal.fire('Berhasil', res, 'success'); loadUsers(); }).addUserDB(nip, nik, nama); }
+    }
+    function hapusUser(row) { Swal.fire({ title: 'Yakin menghapus user ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya!' }).then((result) => { if (result.isConfirmed) { showSpinner(true); google.script.run.withSuccessHandler(res => { showSpinner(false); Swal.fire('Terhapus!', res, 'success'); loadUsers(); }).deleteUserDB(row); } }); }
+    function downloadTemplateUser() { var wb = XLSX.utils.book_new(); var ws_data = [["NIP", "NIK", "Nama Lengkap"], ["1985010101", "3501234567", "Nama Contoh Satu"]]; var ws = XLSX.utils.aoa_to_sheet(ws_data); XLSX.utils.book_append_sheet(wb, ws, "TemplateUser"); XLSX.writeFile(wb, "Template_Upload_User_BCKS.xlsx"); }
+    function showModalUploadUser() { document.getElementById('fileExcelUser').value = ''; new bootstrap.Modal(document.getElementById('modalUploadUser')).show(); }
+    function prosesUploadUser() {
+      let fileInput = document.getElementById('fileExcelUser'); if(fileInput.files.length === 0) return Swal.fire('Peringatan', 'Pilih file Excel terlebih dahulu!', 'warning');
+      let file = fileInput.files[0]; let reader = new FileReader();
+      reader.onload = function(e) { let workbook = XLSX.read(e.target.result, {type: 'binary'}); let excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1}); if(excelRows.length > 0 && excelRows[0][0] && excelRows[0][0].toString().toLowerCase().includes('nip')) excelRows.shift(); bootstrap.Modal.getInstance(document.getElementById('modalUploadUser')).hide(); showSpinner(true); google.script.run.withSuccessHandler(res => { showSpinner(false); Swal.fire('Berhasil', res, 'success'); loadUsers(); }).uploadTemplateUsersExcel(excelRows); }; reader.readAsBinaryString(file);
+    }
+
+    // ================= FUNGSI PEGAWAI BIODATA & VERIFIKASI =================
+    let oldFiles = {};
+    function loadPegawaiBio() {
+      showSpinner(true); const nip = localStorage.getItem('nip'); document.getElementById('bioNIP').value = nip; document.getElementById('bioNama').value = localStorage.getItem('nama');
+      google.script.run.withSuccessHandler(res => {
+        showSpinner(false);
+        let formElements = document.getElementById('formBiodata').querySelectorAll('input, select, textarea, button'); let btnSubmit = document.getElementById('btnSubmitBio');
+        const alertBox = document.getElementById('alertBio'); alertBox.classList.add('d-none'); formElements.forEach(el => el.disabled = false); btnSubmit.innerText = "Simpan dan Kirim";
+        let isExpired = false; if(globalBatasWaktu && globalBatasWaktu !== "") { isExpired = new Date() > new Date(globalBatasWaktu); }
+        if(res) {
+          document.getElementById('bioJenjang').value = res.Jenjang || "SD"; document.getElementById('bioNIK').value = res.NIK; document.getElementById('bioNUPTK').value = res.NUPTK;
+          document.getElementById('bioTempat').value = res.Tempat_Lahir; let tgl = new Date(res.Tanggal_Lahir); if(!isNaN(tgl.getTime())) document.getElementById('bioTgl').value = tgl.toISOString().split('T')[0];
+          document.getElementById('bioJK').value = res.Jenis_Kelamin; document.getElementById('bioAgama').value = res.Agama; document.getElementById('bioGol').value = res.Pangkat_Golongan; document.getElementById('bioJabatan').value = res.Jabatan; document.getElementById('bioUnit').value = res.Unit_Kerja; document.getElementById('bioEmail').value = res.Email; document.getElementById('bioHP').value = res.No_HP; document.getElementById('bioAlamat').value = res.Alamat;
+          oldFiles = { old_Foto: res.Foto, old_Ijazah: res.Ijazah, old_Sertifikat: res.Sertifikat, old_SK: res.SK, old_SKP: res.SKP, old_Sehat: res.Sehat, old_SKCK: res.SKCK, old_Pakta: res.Pakta };
+
+          if(res.Status_Verifikasi === 'Berkas Lengkap') { formElements.forEach(el => el.disabled = true); btnSubmit.disabled = true; btnSubmit.innerText = "Data Dinyatakan Lengkap / Disetujui"; alertBox.className = "alert alert-success"; alertBox.innerHTML = "<b>Info:</b> Formulir Anda telah disetujui secara permanen."; alertBox.classList.remove('d-none'); } 
+          else if (isExpired) { formElements.forEach(el => el.disabled = true); btnSubmit.disabled = true; btnSubmit.innerText = "Waktu Habis"; alertBox.className = "alert alert-danger pulse-red"; alertBox.innerHTML = "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya"; alertBox.classList.remove('d-none'); } 
+          else if (res.Status_Verifikasi === 'Berkas Tidak Lengkap') { alertBox.className = "alert alert-danger"; alertBox.innerHTML = "<b>Perhatian:</b> Berkas Tidak Lengkap! Catatan Admin: " + res.Catatan; alertBox.classList.remove('d-none'); } 
+          else if (res.Status_Verifikasi === 'Belum Verifikasi') { alertBox.className = "alert alert-info"; alertBox.innerHTML = "<b>Info:</b> Menunggu antrean verifikasi Admin. Anda masih dapat mengupdate data."; alertBox.classList.remove('d-none'); }
+        } else { if (isExpired) { formElements.forEach(el => el.disabled = true); btnSubmit.disabled = true; btnSubmit.innerText = "Waktu Habis"; alertBox.className = "alert alert-danger pulse-red"; alertBox.innerHTML = "Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya"; alertBox.classList.remove('d-none'); } }
+      }).getBiodataPegawai(nip);
+    }
+
+    async function submitBiodata() {
+      if(globalBatasWaktu && globalBatasWaktu !== "" && new Date() > new Date(globalBatasWaktu)){ return Swal.fire('Gagal', 'Maaf batas melengkapi data sudah selesai tidak menerima data baru lagi terimakasih atas kerjasamanya', 'error'); }
+      const btn = document.getElementById('btnSubmitBio'); let fileInputs = document.querySelectorAll('.bioFile'); let filesToUpload = [];
+      for (let input of fileInputs) {
+        if (input.files.length > 0) {
+          let f = input.files[0];
+          if (f.size > 2097152) return Swal.fire('Gagal', 'Ukuran file ' + input.getAttribute('data-name') + ' melebihi 2MB!', 'error');
+          let ext = f.name.split('.').pop().toLowerCase(); if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) return Swal.fire('Gagal', 'Format file ' + input.getAttribute('data-name') + ' tidak valid!', 'error');
+          let b64 = await toBase64(f); filesToUpload.push({ name: input.getAttribute('data-name'), base64: b64 });
+        }
+      }
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunggah Data & File...'; btn.disabled = true;
+      let formData = { NIP: document.getElementById('bioNIP').value, Nama: document.getElementById('bioNama').value, Jenjang: document.getElementById('bioJenjang').value, NIK: document.getElementById('bioNIK').value, NUPTK: document.getElementById('bioNUPTK').value, Tempat_Lahir: document.getElementById('bioTempat').value, Tanggal_Lahir: document.getElementById('bioTgl').value, Jenis_Kelamin: document.getElementById('bioJK').value, Agama: document.getElementById('bioAgama').value, Pangkat_Golongan: document.getElementById('bioGol').value, Jabatan: document.getElementById('bioJabatan').value, Unit_Kerja: document.getElementById('bioUnit').value, Email: document.getElementById('bioEmail').value, No_HP: document.getElementById('bioHP').value, Alamat: document.getElementById('bioAlamat').value, ...oldFiles };
+      google.script.run.withSuccessHandler(res => { if(res.includes("sudah selesai")) { Swal.fire('Waktu Habis', res, 'error'); } else { Swal.fire({ icon: 'success', title: 'Berhasil', text: res }); } loadPegawaiBio(); }).withFailureHandler(err => { Swal.fire('Gagal!', err.message, 'error'); btn.innerHTML = '<i class="fas fa-paper-plane"></i> Simpan dan Kirim'; btn.disabled = false; }).saveBiodata(formData, filesToUpload);
+    }
+
+    const toBase64 = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error); });
+
+    function loadPegawaiVerif() {
+      const nip = localStorage.getItem('nip'); showSpinner(true);
+      google.script.run.withSuccessHandler(res => {
+        showSpinner(false); const div = document.getElementById('verifikasiStatus'); const kartu = document.getElementById('kartuPesertaArea'); kartu.classList.add('d-none');
+        if(!res || res.Status_Verifikasi === '') { div.innerHTML = `<h3 class="text-secondary">Anda belum mengisi form pendaftaran.</h3>`; } 
+        else if (res.Status_Verifikasi === 'Belum Verifikasi') { div.innerHTML = `<h3 class="text-warning"><i class="fas fa-clock"></i> Sedang Dalam Antrean Verifikasi</h3><p>Berkas Anda telah diterima dan menunggu pengecekan Admin.</p>`; } 
+        else if (res.Status_Verifikasi === 'Berkas Tidak Lengkap') { div.innerHTML = `<h3 class="text-danger"><i class="fas fa-times-circle"></i> Berkas Tidak Lengkap</h3><div class="alert alert-danger mt-3"><b>Catatan Admin:</b> ${res.Catatan}</div><p>Silahkan perbaiki data Anda pada menu Biodata.</p>`; } 
+        else if (res.Status_Verifikasi === 'Berkas Lengkap') {
+          div.innerHTML = `<h3 class="text-success"><i class="fas fa-check-circle"></i> Selamat! Berkas Dinyatakan LENGKAP</h3><p>Anda dapat mengunduh Kartu Peserta Ujian Anda di bawah ini.</p>`;
+          
+          // PERBAIKAN: Struktur Pas Foto di Kartu Ujian[cite: 20]
+          if (res.Foto && res.Foto !== "") { document.getElementById('k_foto').src = res.Foto; document.getElementById('k_foto').style.display = 'block'; document.getElementById('k_foto_text').style.display = 'none'; } 
+          else { document.getElementById('k_foto').style.display = 'none'; document.getElementById('k_foto_text').style.display = 'block'; }
+          
+          document.getElementById('k_nama').innerText = res.Nama; document.getElementById('k_jenjang').innerText = (res.Unit_Kerja || '-'); document.getElementById('k_nik').innerText = res.NIK;
+          let formatTglLahir = new Date(res.Tanggal_Lahir).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+          document.getElementById('k_ttl').innerText = res.Tempat_Lahir + ", " + (formatTglLahir !== 'Invalid Date' ? formatTglLahir : '-'); document.getElementById('k_jk').innerText = res.Jenis_Kelamin;
+          document.getElementById('k_lokasi').innerText = res.Lokasi_Ujian || "Menunggu Jadwal dari Panitia";
+          let tglUjianFormat = new Date(res.Tanggal_Ujian).toLocaleDateString('id-ID', { weekday:'long', year: 'numeric', month: 'long', day: 'numeric' });
+          document.getElementById('k_tgl').innerText = (res.Tanggal_Ujian ? tglUjianFormat : '-');
+          let wktFormat = formatWaktu24(res.Waktu_Ujian); document.getElementById('k_waktu').innerText = wktFormat !== '-' ? wktFormat + ' WIB' : '-';
+          document.getElementById('k_sesi').innerText = (res.Sesi_Ujian || '-'); document.getElementById('k_user').innerText = (res.Username_CAT || '-'); document.getElementById('k_pass').innerText = (res.Password_CAT || '-');
+          kartu.classList.remove('d-none');
+        }
+      }).getBiodataPegawai(nip);
+    }
+
+    function unduhKartu() {
+      const el = document.getElementById('kartuPeserta');
+      var opt = { margin: [0.2, 0.3, 0.2, 0.3], filename: 'Kartu_Tes_CAT_BCKS_'+localStorage.getItem('nip')+'.pdf', image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, useCORS: true, allowTaint: true }, jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' } };
+      html2pdf().set(opt).from(el).save();
+    }
+  </script>
+</body>
+</html>
